@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const itemRoutes = require('./routes/itemRoutes');
 const authRoutes = require('./routes/authRoutes');
 const authMiddleware = require('./middleware/authMiddleware');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,7 @@ mongoose.connect('mongodb://localhost:27017/lostandfound', {
 // Routes
 app.use('/api/items', authMiddleware, itemRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/notifications', authMiddleware, notificationRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

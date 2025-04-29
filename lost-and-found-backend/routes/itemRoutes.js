@@ -3,6 +3,7 @@ const Item = require('../models/item');
 const User = require('../models/user');
 const authMiddleware = require('../middleware/authMiddleware');
 const router = express.Router();
+const Notification = require('../models/notification');
 
 // Add a new item
 router.post('/', authMiddleware, async (req, res) => {
@@ -27,6 +28,8 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update an item by ID
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
+    console.log("Info of update request: ", req.params);
+    console.log("Updating item with ID(in itemRoutes): ", req.params.itemName);
     const item = await Item.findById(req.params.id);
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
@@ -102,5 +105,83 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// Add a claim to an item
+router.post('/:id/claim', authMiddleware, async (req, res) => {
+  try {
+    console.log("Claiming item with ID(in itemRoutes): ", req.params.id);
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Check if the item is already claimed
+    if (item.claimedById) {
+      return res.status(400).json({ message: 'This item is already claimed' });
+    }
+
+    // Check if the current user is trying to claim their own item
+    if (item.reportedById.toString() === req.userId) {
+      return res.status(403).json({ message: 'You cannot claim your own item' });
+    }
+
+    item.claimedById = req.userId;
+    item.claimStatus = 'pending';
+    await item.save();
+
+    // Create notification for the item reporter
+    const notification = new Notification({
+      userId: item.reportedById,
+      itemId: item._id,
+      message: `Someone has claimed item: ${item.name}`
+    });
+    await notification.save();
+
+    // Add notification to user's notifications
+    const user = await User.findById(item.reportedById);
+    user.notifications.push(notification._id);
+    await user.save();
+
+    res.json(item);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Manage claim status (accept/reject)
+router.put('/:id/claim', authMiddleware, async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id);
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+
+    // Check if the authenticated user is the reporter
+    if (item.reportedById.toString() !== req.userId) {
+      return res.status(403).json({ message: 'You are not authorized to manage this claim' });
+    }
+
+    // Update claim status
+    item.claimStatus = req.body.claimStatus;
+    await item.save();
+
+    // Create notification for the claimant
+    const claimant = await User.findById(item.claimedById);
+    const notification = new Notification({
+      userId: item.claimedById,
+      itemId: item._id,
+      message: `Your claim for ${item.name} has been ${req.body.claimStatus}`
+    });
+    await notification.save();
+
+    claimant.notifications.push(notification._id);
+    await claimant.save();
+
+    res.json(item);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 module.exports = router;

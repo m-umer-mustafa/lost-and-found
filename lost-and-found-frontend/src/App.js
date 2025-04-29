@@ -25,27 +25,30 @@ function App() {
   const [signupPassword, setSignupPassword] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState('home');
+  const [notifications, setNotifications] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       fetchItems();
+      fetchNotifications();
     }
   }, []);
 
   useEffect(() => {
     if (user) {
       fetchItems();
+      fetchNotifications();
     }
   }, [user]);
 
-  // App.js
   const fetchItems = async () => {
     try {
       const params = {
-      search: searchTerm,
-      category: selectedCategory,
+        search: searchTerm,
+        category: selectedCategory,
       };
 
       if (selectedCategory === 'MyItems' && user) {
@@ -54,12 +57,23 @@ function App() {
 
       const response = await axios.get('http://localhost:5000/api/items', { params });
       setItems(response.data);
-      } catch (error) {
-        console.error('Error fetching items', error);
-        if (error.response?.status === 403) {
-          handleLogout();
-        }
-        }
+    } catch (error) {
+      console.error('Error fetching items', error);
+      if (error.response?.status === 403) {
+        handleLogout();
+      }
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/api/notifications', {
+        params: { userId: user?._id }
+      });
+      setNotifications(response.data);
+    } catch (error) {
+      console.error('Error fetching notifications', error);
+    }
   };
 
   const handleInputChange = (e) => {
@@ -188,6 +202,47 @@ function App() {
     fetchItems();
   };
 
+  const handleClaim = async (itemId) => {
+    try {
+      console.log("Claiming item with ID(in App/handleClaim):", itemId);
+      await axios.post(`/api/items/${itemId}`);
+      fetchItems();
+      setSuccessMessage('Your claim request has been sent successfully');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (error) {
+      console.error('Error claiming item', error);
+    }
+  };
+
+  const handleAcceptClaim = async (itemId) => {
+    try {
+      await axios.put(`/api/items/${itemId}`, { claimStatus: 'accepted' });
+      fetchItems();
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error accepting claim', error);
+    }
+  };
+
+  const handleRejectClaim = async (itemId) => {
+    try {
+      await axios.put(`/api/items/${itemId}`, { claimStatus: 'rejected' });
+      fetchItems();
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error rejecting claim', error);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      await axios.put(`http://localhost:5000/api/notifications/${notificationId}/read`);
+      fetchNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read', error);
+    }
+  };
+
   return (
     <div className="container">
       <header className="app-header">
@@ -291,7 +346,29 @@ function App() {
         <div>
           {currentPage === 'home' ? (
             <div className="home-container">
+
+              <div className="reports-container">
+                <h2>Notifications</h2>
+                {notifications.length === 0 ? (
+                  <p>No notifications yet</p>
+                ) : (
+                  <div className="notification-list">
+                    {notifications.map((notification) => (
+                      <div 
+                        key={notification._id} 
+                        className={`notification-item ${notification.isRead ? 'read' : 'unread'}`}
+                        onClick={() => markNotificationAsRead(notification._id)}
+                      >
+                        <p>{notification.message}</p>
+                        <small>{new Date(notification.createdAt).toLocaleString()}</small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <h2>Search Items</h2>
+
               <div className="search-container">
                 <input
                   type="text"
@@ -329,33 +406,67 @@ function App() {
                         <p>{item.description}</p>
                         <p>Category: {item.category}</p>
                         <p>Status: {item.found ? 'Found' : 'Lost'}</p>
-                        {/*<p>Reported By: {item.reportedByUsername}</p>*/}
                         <p>Reporter Email: {item.reportedByEmail}</p>
+                        {item.claimedById && (
+                          <p>
+                            Claimed by: {item.claimedById} - Status: {item.claimStatus}
+                          </p>
+                        )}
                       </div>
                       <div className="item-actions">
                         {user && item.reportedByUsername === user.username && (
                           <>
                             <button onClick={() => handleEdit(item)}>Edit</button>
                             <button onClick={() => handleDelete(item._id)}>Delete</button>
+                            {item.claimedById && (
+                              <>
+                                <button
+                                  onClick={() => handleAcceptClaim(item._id)}
+                                  disabled={item.claimStatus === 'accepted'}
+                                >
+                                  Accept Claim
+                                </button>
+                                <button
+                                  onClick={() => handleRejectClaim(item._id)}
+                                  disabled={item.claimStatus === 'rejected'}
+                                >
+                                  Reject Claim
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
+
+                        {user && item.reportedByUsername !== user.username && !item.claimedById && (
+                            <button onClick={() => handleClaim(item._id)}>Claim</button>
+                        )}
+
+                        {user && item.reportedByUsername !== user.username && item.claimedById && (
+                            <p className="info-message">This item is already claimed</p>
+                        )}
                       </div>
-                      {editingItem && (
-                        <EditItem
-                          item={editingItem}
-                          onClose={closeEditForm}
-                          onUpdate={updateItem}
-                        />
-                      )}
                     </div>
                   ))}
                 </div>
               </div>
+
+              {editingItem &&  (
+                <EditItem
+                  item={editingItem}
+                  onClose={closeEditForm}
+                  onUpdate={updateItem}
+                />
+              )}
+
+              {successMessage && (
+                <div className="success-message">
+                  {successMessage}
+                </div>
+              )}
             </div>
           ) : (
             <ReportItemPage goBack={goBack} />
           )}
-          
         </div>
       )}
     </div>

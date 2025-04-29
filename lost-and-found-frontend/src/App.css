@@ -591,3 +591,77 @@ button[type="update"] {
   font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
   color:#c4afef;
 }
+
+.claim-button {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.claim-button:hover {
+  background-color: #0fa773;
+}
+
+.manage-claim-button {
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.manage-claim-button:hover {
+  background-color: #e08e0a;
+}
+
+.notifications-container {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: var(--card-background);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.notification-list {
+  margin-top: 1rem;
+}
+
+.notification-item {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.notification-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.notification-item.unread {
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.notification-item.read {
+  background-color: transparent;
+}
+
+.info-message {
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.success-message {
+  padding: 1rem;
+  background-color: #10b981;
+  color: white;
+  border-radius: var(--border-radius);
+  text-align: center;
+  margin-top: 1rem;
+}

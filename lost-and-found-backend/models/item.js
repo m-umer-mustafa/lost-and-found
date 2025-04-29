@@ -12,6 +12,8 @@ const itemSchema = new mongoose.Schema({
   reportedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   reportedByUsername: { type: String },
   reportedByEmail: { type: String },
+  claimedById: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  claimStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: null },
   createdAt: { type: Date, default: Date.now }
 });
 
